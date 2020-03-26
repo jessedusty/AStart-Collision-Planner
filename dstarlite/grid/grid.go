@@ -129,7 +129,8 @@ type Data struct {
 	coords        map[string]float64
 	width, height int
 	start, goal   Coord
-	neighborMask []Coord
+	neighborMask  []Coord
+	inverted      bool
 }
 
 // Start returns the start coordinate, as it is currently.
@@ -154,12 +155,18 @@ func (d *Data) Cost(aa, bb dstarlite.State) float64 {
 	if a.Dist(b) != 1 {
 		return math.Inf(1)
 	} else {
-		costA := d.coords[a.Hash()]
+		costA, ok := d.coords[a.Hash()]
+		if !ok && d.inverted {
+			costA = 1
+		}
 		if costA < 0 {
 			return math.Inf(1)
 		}
 
 		costB := d.coords[b.Hash()]
+		if !ok && d.inverted {
+			costB = 1
+		}
 		if costB < 0 {
 			return math.Inf(1)
 		}
@@ -186,7 +193,7 @@ func (d *Data) neighbors(ss dstarlite.State) (sl []dstarlite.State) {
 
 	next := func(c1 Coord) {
 		_, ok := d.Get(c1)
-		if ok {
+		if ok || d.inverted {
 			sl = append(sl, c1)
 		}
 	}
@@ -292,7 +299,7 @@ func (d *Data) Plan() (path []Coord) {
 //
 // If either start or goal coordinates are outside the coordinates of the grid,
 // an panic will occur.
-func NewGrid(width, height int, start, goal Coord) *Data {
+func NewGrid(width, height int, start, goal Coord, undefinedGood bool) *Data {
 	if width <= 0 || height <= 0 {
 		panic("NewGrid(): Cannot create grid of size <= 0")
 	}
@@ -304,6 +311,7 @@ func NewGrid(width, height int, start, goal Coord) *Data {
 	}
 
 	d := new(Data)
+	d.inverted = undefinedGood
 	d.width = width
 	d.height = height
 	d.start = start

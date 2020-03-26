@@ -100,7 +100,7 @@ func TestMazeThing(t *testing.T) {
 
 	// old starting coordinates
 	// grid := NewGrid(bounds.X, bounds.Y, Coord{12, 14}, Coord{500, 500}, true)
-	grid := NewGrid(bounds.X, bounds.Y, Coord{2, 2}, Coord{27, 27})
+	grid := NewGrid(bounds.X, bounds.Y, Coord{2, 2}, Coord{27, 27}, false)
 	for x := 0; x < bounds.X; x++ {
 		for y := 0; y < bounds.Y; y++ {
 			r, _, _, _ := src.At(x, y).RGBA()
@@ -140,7 +140,7 @@ func TestMazeThingInv(t *testing.T) {
 
 	bounds := src.Bounds().Max
 
-	grid := NewGrid(bounds.X, bounds.Y, Coord{2, 2}, Coord{27, 27})
+	grid := NewGrid(bounds.X, bounds.Y, Coord{2, 2}, Coord{27, 27}, true)
 
 	for x := 0; x < bounds.X; x++ {
 		for y := 0; y < bounds.Y; y++ {
