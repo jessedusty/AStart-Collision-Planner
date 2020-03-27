@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"reflect"
 	"testing"
 )
 
@@ -52,12 +53,11 @@ func assertContainsSame(t *testing.T, a []Coord, rhs [][]int) {
 	}
 }
 
-//
-//func assertEqual(t *testing.T, a interface{}, b interface{}) {
-//	if !reflect.DeepEqual(a, b) {
-//		t.Fatalf("%s != %s", a, b)
-//	}
-//}
+func assertEqual(t *testing.T, a interface{}, b interface{}) {
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("%s != %s", a, b)
+	}
+}
 
 func TestConvertToCoords(t *testing.T) {
 	a := [][]int{{1, 0}}
@@ -100,7 +100,7 @@ func TestMazeThing(t *testing.T) {
 
 	// old starting coordinates
 	// grid := NewGrid(bounds.X, bounds.Y, Coord{12, 14}, Coord{500, 500}, true)
-	grid := NewGrid(bounds.X, bounds.Y, Coord{2, 2}, Coord{27, 27}, false)
+	grid := NewGrid([]int{bounds.X, bounds.Y}, Coord{2, 2}, Coord{27, 27}, false)
 	for x := 0; x < bounds.X; x++ {
 		for y := 0; y < bounds.Y; y++ {
 			r, _, _, _ := src.At(x, y).RGBA()
@@ -140,7 +140,7 @@ func TestMazeThingInv(t *testing.T) {
 
 	bounds := src.Bounds().Max
 
-	grid := NewGrid(bounds.X, bounds.Y, Coord{2, 2}, Coord{27, 27}, true)
+	grid := NewGrid([]int{bounds.X, bounds.Y}, Coord{2, 2}, Coord{27, 27}, true)
 
 	for x := 0; x < bounds.X; x++ {
 		for y := 0; y < bounds.Y; y++ {
@@ -171,4 +171,10 @@ func TestMazeThingInv(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func TestExtends(t *testing.T) {
+	assertEqual(t, (Coord{10, 10}).insideExtents([]int{20, 20}), true)
+	assertEqual(t, (Coord{25, 25}).insideExtents([]int{20, 20}), false)
+
 }

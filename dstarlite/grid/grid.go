@@ -123,14 +123,23 @@ func (a Coord) add(b Coord) Coord {
 	return retVal
 }
 
+func (a Coord) insideExtents(extents []int) bool {
+	for i, _ := range extents {
+		if a[i] > extents[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Data represents an actual grid's data.
 type Data struct {
-	dsl           *dstarlite.Planner
-	coords        map[string]float64
-	width, height int
-	start, goal   Coord
-	neighborMask  []Coord
-	inverted      bool
+	dsl          *dstarlite.Planner
+	coords       map[string]float64
+	extents      []int
+	start, goal  Coord
+	neighborMask []Coord
+	inverted     bool
 }
 
 // Start returns the start coordinate, as it is currently.
@@ -144,8 +153,8 @@ func (d *Data) Goal() Coord {
 }
 
 // Size returns the width and height of the grid.
-func (d *Data) Size() (width, height int) {
-	return d.width, d.height
+func (d *Data) Size() []int {
+	return d.extents
 }
 
 // Implements dstarlite.Data interface.
@@ -220,7 +229,7 @@ func (d *Data) Pred(s dstarlite.State) []dstarlite.State {
 //
 // If the coordinate is outside of the grid's dimensions, an panic will occur.
 func (d *Data) Set(pos Coord, value float64) {
-	if pos[0] > d.width || pos[0] < 0 || pos[1] > d.height || pos[1] < 0 {
+	if !pos.insideExtents(d.extents) {
 		panic("Set(): Coordinate outside of grid's dimensions!")
 	}
 
@@ -262,7 +271,7 @@ func (d *Data) Set(pos Coord, value float64) {
 //
 // If the coordinate is outside of the grid's dimensions, ok will equal false.
 func (d *Data) Get(pos Coord) (value float64, ok bool) {
-	if pos[0] > d.width || pos[0] < 0 || pos[1] > d.height || pos[1] < 0 {
+	if !pos.insideExtents(d.extents) {
 		ok = false
 		return
 	}
@@ -299,21 +308,23 @@ func (d *Data) Plan() (path []Coord) {
 //
 // If either start or goal coordinates are outside the coordinates of the grid,
 // an panic will occur.
-func NewGrid(width, height int, start, goal Coord, undefinedGood bool) *Data {
-	if width <= 0 || height <= 0 {
-		panic("NewGrid(): Cannot create grid of size <= 0")
+func NewGrid(extents []int, start, goal Coord, undefinedGood bool) *Data {
+	for _, v := range extents {
+		if v < 0 {
+			panic("NewGrid(): Cannot create grid with negative extents size")
+		}
 	}
-	if start[0] > width || start[0] < 0 || start[1] > height || start[1] < 0 {
+
+	if !start.insideExtents(extents) {
 		panic("NewGrid(): Start coordinate outside of grid's dimensions!")
 	}
-	if goal[0] > width || goal[0] < 0 || goal[1] > height || goal[1] < 0 {
+	if !goal.insideExtents(extents) {
 		panic("NewGrid(): Goal coordinate outside of grid's dimensions!")
 	}
 
 	d := new(Data)
 	d.inverted = undefinedGood
-	d.width = width
-	d.height = height
+	d.extents = extents
 	d.start = start
 	d.goal = goal
 	d.coords = make(map[string]float64)
