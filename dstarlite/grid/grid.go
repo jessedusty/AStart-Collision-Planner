@@ -8,6 +8,8 @@ package grid
 
 import (
 	"ee631_midterm/dstarlite"
+	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -91,7 +93,7 @@ func (a Coord) Equals(other dstarlite.State) bool {
 
 // Dist returns manhattan distance between two coordinates
 // returns -1 if the Coordinates have different dimensions
-func (a Coord) Dist(b Coord) float64 {
+func (a Coord) ManhattanDist(b Coord) float64 {
 	if len(a) != len(b) {
 		return -1
 	}
@@ -102,6 +104,21 @@ func (a Coord) Dist(b Coord) float64 {
 	}
 
 	return sum
+}
+
+// Dist returns manhattan distance between two coordinates
+// returns -1 if the Coordinates have different dimensions
+func (a Coord) Dist(b Coord) float64 {
+	if len(a) != len(b) {
+		return -1
+	}
+
+	sum := float64(0)
+	for i := 0; i < len(a); i++ {
+		sum += math.Pow(float64(b[i]-a[i]), 2)
+	}
+
+	return math.Sqrt(sum)
 }
 
 func (a Coord) Hash() string {
@@ -142,6 +159,10 @@ type Data struct {
 	inverted     bool
 }
 
+func (d *Data) GetMapData() *map[string]float64 {
+	return &d.coords
+}
+
 // Start returns the start coordinate, as it is currently.
 func (d *Data) Start() Coord {
 	return d.dsl.Start().(Coord)
@@ -161,7 +182,8 @@ func (d *Data) Size() []int {
 func (d *Data) Cost(aa, bb dstarlite.State) float64 {
 	a := aa.(Coord)
 	b := bb.(Coord)
-	if a.Dist(b) != 1 {
+	// Greater than 2 to handle diagonal
+	if a.ManhattanDist(b) > 2 {
 		return math.Inf(1)
 	} else {
 		costA, ok := d.coords[a.Hash()]
@@ -230,7 +252,7 @@ func (d *Data) Pred(s dstarlite.State) []dstarlite.State {
 // If the coordinate is outside of the grid's dimensions, an panic will occur.
 func (d *Data) Set(pos Coord, value float64) {
 	if !pos.insideExtents(d.extents) {
-		panic("Set(): Coordinate outside of grid's dimensions!")
+		panic(fmt.Sprintf("Set(): Coordinate %v outside of grid's dimensions %v", pos, d.extents))
 	}
 
 	if value == d.coords[pos.Hash()] {
@@ -299,6 +321,43 @@ func (d *Data) Plan() (path []Coord) {
 	}
 
 	return
+}
+
+func allTrue(s []bool) bool {
+	for _, v := range s {
+		if v == false {
+			return false
+		}
+	}
+	return true
+}
+
+// Fill fills grid with value from pos, increments any dimension set to 1 in the mask
+func (d *Data) Fill(value float64, pos Coord, mask Coord) {
+	log.Printf("Fill(%v, %v, %v)", value, pos, mask)
+	if !pos.insideExtents(d.extents) {
+		panic(fmt.Sprintf("Set(): Coordinate %v outside of grid's dimensions %v", pos, d.extents))
+	}
+
+	finished := make([]bool, len(mask))
+	for i, shouldFill := range mask {
+		if shouldFill == 0 {
+			finished[i] = true
+		}
+	}
+
+	for !allTrue(finished) {
+		d.Set(pos, value)
+		for dim, shouldFill := range mask {
+			if shouldFill != 0 && !finished[dim] {
+				pos[dim] += 1
+				if pos[dim] >= d.extents[dim] {
+					finished[dim] = true
+				}
+			}
+		}
+	}
+	log.Printf("Fill Finish")
 }
 
 // New returns an new grid data structure given an width and height where each
