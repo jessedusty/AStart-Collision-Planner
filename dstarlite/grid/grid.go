@@ -182,8 +182,12 @@ func (d *Data) Size() []int {
 func (d *Data) Cost(aa, bb dstarlite.State) float64 {
 	a := aa.(Coord)
 	b := bb.(Coord)
+
+	if !a.insideExtents(d.extents) || !b.insideExtents(d.extents) {
+		return math.Inf(1)
+	}
 	// Greater than 2 to handle diagonal
-	if a.ManhattanDist(b) > 2 {
+	if math.Floor(a.Dist(b)) > 1 {
 		return math.Inf(1)
 	} else {
 		costA, ok := d.coords[a.Hash()]

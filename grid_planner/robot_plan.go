@@ -6,7 +6,7 @@ import (
 	"math"
 )
 
-const safetyMargin = 10
+const safetyMargin = 50
 
 type RobotPlan struct {
 	XYPath         []grid.Coord
@@ -44,6 +44,20 @@ func (rp *RobotPlan) InterpolateFromDistance(dist float64) *grid.Coord {
 	}
 
 	return &rp.XYPath[len(rp.XYPath)-1]
+}
+
+func (rp *RobotPlan) FindIndexForDistance(dist float64) int {
+	if dist < 0 {
+		return 0
+	}
+
+	for i, n := range rp.pointDistances {
+		if n > dist {
+			return i
+		}
+	}
+
+	return len(rp.XYPath) - 1
 }
 
 func (rp *RobotPlan) CollidesWith(otherPlan *RobotPlan) (collisions []bool) {

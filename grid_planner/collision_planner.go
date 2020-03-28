@@ -2,17 +2,21 @@ package grid_planner
 
 import (
 	"ee631_midterm/dstarlite/grid"
+	"ee631_midterm/msgs/nav_msgs"
 	"fmt"
 	"log"
 	"math"
 	"sync"
+	"time"
 )
 
 type CollisionPlanner struct {
-	Num           int
-	grid          *grid.Data
-	robots        []*RobotPlan
-	collisionPlan []grid.Coord
+	Num               int
+	grid              *grid.Data
+	robots            []*RobotPlan
+	collisionPlan     []grid.Coord
+	RobotPositionChan chan NewPos
+	Planners          []BasicPlanner
 }
 
 func (cp *CollisionPlanner) InputLoop(pathInputs []chan []grid.Coord) {
@@ -38,12 +42,32 @@ func (cp *CollisionPlanner) InputLoop(pathInputs []chan []grid.Coord) {
 		log.Printf("CollisionPlanner::InputLoop(): Planning")
 		cp.Plan()
 		log.Printf("CollisionPlanner::InputLoop(): Done Planning %v", cp.collisionPlan)
+		cp.PlayPlan()
 	}
 }
 
-func NewCollisionPlanner(numRobots int) *CollisionPlanner {
+func (cp *CollisionPlanner) PlayPlan() {
+
+	paths := make([]*nav_msgs.Path, cp.Num)
+	for i, planner := range cp.Planners {
+		paths[i] = planner.getPath()
+	}
+
+	for _, pathPosition := range cp.collisionPlan {
+		for robotID, _ := range pathPosition {
+			pathIndex := cp.robots[robotID].FindIndexForDistance(float64(pathPosition[robotID]))
+			cp.RobotPositionChan <- NewPos{
+				Coord:   paths[robotID].Poses[pathIndex],
+				RobotId: robotID,
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func NewCollisionPlanner(numRobots int, robotPositionChan chan NewPos, planners []BasicPlanner) *CollisionPlanner {
 	// TODO: Input robot plan
-	retVal := CollisionPlanner{Num: numRobots, robots: make([]*RobotPlan, numRobots)}
+	retVal := CollisionPlanner{Num: numRobots, robots: make([]*RobotPlan, numRobots), RobotPositionChan: robotPositionChan, Planners: planners}
 	return &retVal
 }
 

@@ -64,8 +64,8 @@ func main() {
 
 	startPositions := []grid.Coord{
 		grid.Coord{21, 177},
-		grid.Coord{71, 180},
-		grid.Coord{121, 187},
+		grid.Coord{21, 177 - 25},
+		grid.Coord{21, 177 - 50},
 	}
 
 	for robotID := 0; robotID < NUM_ROBOTS; robotID++ {
@@ -93,7 +93,7 @@ func main() {
 	go mapChannelSplitter(mapChan, plannerMapInputs)
 	go goalChannelSplitter(goalChan, goalChanInputs)
 
-	collisionPlanner := grid_planner.NewCollisionPlanner(NUM_ROBOTS)
+	collisionPlanner := grid_planner.NewCollisionPlanner(NUM_ROBOTS, positionChan, level1Planners)
 	go collisionPlanner.InputLoop(gridPathChanOutputs)
 
 	node.NewSubscriber("/move_base_simple/goal", geometry_msgs.MsgPoseStamped, func(msg *geometry_msgs.PoseStamped) {
