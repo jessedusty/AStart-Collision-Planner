@@ -3,6 +3,8 @@ package grid_planner
 import (
 	"ee631_midterm/astar_planner"
 	"ee631_midterm/msgs/nav_msgs"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"math"
 	"sync"
@@ -79,7 +81,7 @@ func initCoordWithValue(dims, defaultValue int) []int {
 }
 
 func (cp *CollisionPlanner) Get(coord []int) float64 {
-	start := time.Now()
+	//start := time.Now()
 	collisionCost := math.Inf(1)
 	freeCost := float64(0)
 
@@ -107,7 +109,7 @@ func (cp *CollisionPlanner) Get(coord []int) float64 {
 			}
 			otherRobotPoint := cp.robots[j].XYPath[coord[j]]
 			if sourceRobotPoint.EuclideanDistance(otherRobotPoint) < safetyMargin {
-				log.Printf("Collision of %d and %d at coord %v in %d us", i, j, coord, time.Since(start).Nanoseconds())
+				//log.Printf("Collision of %d and %d at coord %v in %d us", i, j, coord, time.Since(start).Nanoseconds())
 				return collisionCost
 			}
 		}
@@ -143,6 +145,17 @@ func (cp *CollisionPlanner) Plan() {
 	if !found {
 		log.Print("No collision path found")
 	}
+	//cp.grid.CostmapOutput()
 	cp.grid.TwoDimensionalDebugOutput()
+	pathSaver(plan)
 	cp.collisionPlan = plan
+}
+
+func pathSaver(path []*astar_planner.Tile) {
+	ints := astar_planner.ConvertTileSliceToIntSlice(path)
+	output, _ := json.Marshal(ints)
+	err := ioutil.WriteFile("collisionpath.json", output, 0755)
+	if err != nil {
+		panic(err)
+	}
 }
