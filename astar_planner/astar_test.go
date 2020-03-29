@@ -124,3 +124,10 @@ func TestCoordTo1D(t *testing.T) {
 	assert.Equal(t, CoordTo1D([]int{3, 3}, []int{1, 1}), 4)
 	assert.Equal(t, CoordTo1D([]int{3, 3}, []int{2, 2}), 8)
 }
+
+func TestNeighborFinder(t *testing.T) {
+	result := neighborFinder(7)
+	for i := range result {
+		fmt.Printf("%v\n", result[i])
+	}
+}

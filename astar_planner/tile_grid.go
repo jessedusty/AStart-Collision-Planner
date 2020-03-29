@@ -46,20 +46,7 @@ func (tg *TileGrid) Get(coord []int) *Tile {
 		return nil
 	}
 
-	if !tg.sparse {
-		index := CoordTo1D(tg.Extents, coord)
-		if tg.TileCache[index] == nil {
-
-			value := tg.Provider.Get(coord)
-			tg.TileCache[index] = &Tile{
-				Dims:  len(tg.Extents),
-				Coord: coord,
-				Value: value,
-				Grid:  tg,
-			}
-		}
-		return tg.TileCache[index]
-	} else {
+	if tg.sparse {
 		// Look for existing tile
 		for i := range tg.TileCache {
 			if intSliceEqual(tg.TileCache[i].Coord, coord) {
@@ -77,6 +64,19 @@ func (tg *TileGrid) Get(coord []int) *Tile {
 		}
 		tg.TileCache = append(tg.TileCache, newTile)
 		return newTile
+	} else {
+		index := CoordTo1D(tg.Extents, coord)
+		if tg.TileCache[index] == nil {
+
+			value := tg.Provider.Get(coord)
+			tg.TileCache[index] = &Tile{
+				Dims:  len(tg.Extents),
+				Coord: coord,
+				Value: value,
+				Grid:  tg,
+			}
+		}
+		return tg.TileCache[index]
 	}
 }
 
@@ -91,12 +91,12 @@ func (tg *TileGrid) Plan(start []int, end []int) (path []*Tile, distance float64
 }
 
 func (tg *TileGrid) TwoDimensionalDebugOutput() {
-	if len(tg.Extents) != 1 {
+	if len(tg.Extents) != 2 {
 		return
 	}
 
 	highCost := colornames.Red
-	lowCost := colornames.White
+	lowCost := colornames.Black
 	image := image.NewRGBA(image.Rect(0, 0, tg.Extents[0], tg.Extents[1]))
 
 	for _, tile := range tg.TileCache {
@@ -111,4 +111,27 @@ func (tg *TileGrid) TwoDimensionalDebugOutput() {
 	}
 
 	imaging.Save(image, "debugOutput.png")
+}
+
+func (tg *TileGrid) CostmapOutput() {
+	if len(tg.Extents) != 2 {
+		return
+	}
+
+	image := image.NewRGBA(image.Rect(0, 0, tg.Extents[0], tg.Extents[1]))
+
+	for i := 0; i < tg.Extents[0]; i++ {
+		for j := 0; j < tg.Extents[1]; j++ {
+			tile := tg.Get([]int{i, j})
+			if tile.Value > 10 {
+				image.Set(tile.Coord[0], tile.Coord[1], colornames.Black)
+			} else {
+				image.Set(tile.Coord[0], tile.Coord[1], colornames.White)
+			}
+
+		}
+
+	}
+
+	imaging.Save(image, "costmap.png")
 }

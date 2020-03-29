@@ -46,3 +46,15 @@ func _neighborFinder(l [][]int, n int) [][]int {
 func neighborFinder(dimensions int) [][]int {
 	return _neighborFinder([][]int{make([]int, dimensions)}, dimensions)
 }
+
+func addCoords(lhs []int, rhs []int) []int {
+	if len(lhs) != len(rhs) {
+		return []int{}
+	}
+
+	retVal := make([]int, len(lhs))
+	for i := range retVal {
+		retVal[i] = lhs[i] + rhs[i]
+	}
+	return retVal
+}

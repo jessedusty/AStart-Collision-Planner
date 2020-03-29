@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	NUM_ROBOTS = 4
+	NUM_ROBOTS = 7
 )
 
 func main() {

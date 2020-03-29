@@ -41,6 +41,18 @@ func (t *Tile) ManhattanDistance(other *Tile) float64 {
 
 func (t *Tile) PathNeighbors() []astar.Pather {
 	var retVal []astar.Pather
+	// FIXME: Should be called use diagonals
+	if t.onlyForwards {
+		neigh := neighborFinder(t.Dims)
+		for _, n := range neigh {
+			node := t.Grid.Get(addCoords(t.Coord, n))
+			if node != nil && node.Value < 50 {
+				retVal = append(retVal, node)
+			}
+		}
+		return retVal
+	}
+
 	for i := 0; i < t.Dims; i++ {
 		curr := CloneCoord(t.Coord)
 		curr[i] += 1
