@@ -1,7 +1,7 @@
 package grid_planner
 
 import (
-	"ee631_midterm/dstarlite/grid"
+	"ee631_midterm/astar_planner"
 	"ee631_midterm/msgs/geometry_msgs"
 	"ee631_midterm/msgs/map_msgs"
 	"ee631_midterm/msgs/nav_msgs"
@@ -14,15 +14,15 @@ import (
 
 type BasicPlanner struct {
 	lastMap           *nav_msgs.OccupancyGrid
-	Start, Goal       grid.Coord
-	Grid              *grid.Data
+	Start, Goal       []int
+	Grid              *astar_planner.TileGrid
 	GoalChan          chan *geometry_msgs.PoseStamped
 	MapChan           chan *nav_msgs.OccupancyGrid
 	MapUpdateChan     chan *map_msgs.OccupancyGridUpdate
 	PathChan          chan *nav_msgs.Path
-	GridPathChan      chan []grid.Coord
+	GridPathChan      chan []*astar_planner.Tile
 	RobotPositionChan chan NewPos
-	Path              []grid.Coord
+	Path              []*astar_planner.Tile
 	MapResolution     float64
 	MapOrigin         []float64
 	RobotId           int
@@ -35,12 +35,13 @@ func (p *BasicPlanner) PlanGenerator() {
 			log.Printf(debugStr, p.RobotId, "PathGenerator", "Got new map")
 			p.newMap(newMap)
 			p.rePlan()
-			log.Printf(debugStr, p.RobotId, "PathGenerator", "Push PathChan")
+			//log.Printf(debugStr, p.RobotId, "PathGenerator", "Push PathChan")
 			p.PathChan <- p.getPath()
-			log.Printf(debugStr, p.RobotId, "PathGenerator", "Push GridPathChan")
+			//log.Printf(debugStr, p.RobotId, "PathGenerator", "Push GridPathChan")
 			p.GridPathChan <- p.Path
-			log.Printf(debugStr, p.RobotId, "PathGenerator", "Finished processing new map")
+			//log.Printf(debugStr, p.RobotId, "PathGenerator", "Finished processing new map")
 			//go p.FollowPath()
+			//log.Println(astar_planner.TilePathAsString(p.Path))
 		case mapUpdate := <-p.MapUpdateChan:
 			log.Printf(debugStr, p.RobotId, "PathGenerator", "Got map update")
 			p.mapUpdate(mapUpdate)
@@ -49,11 +50,10 @@ func (p *BasicPlanner) PlanGenerator() {
 			log.Printf(debugStr, p.RobotId, "PathGenerator", "Got goal update")
 			p.Goal = p.ConvertPointToCoord(goalUpdate.Pose.Position)
 			log.Printf("Got new goal (%d, %d)", p.Goal[0], p.Goal[1])
-			p.updateGoal()
 			p.rePlan()
-			log.Printf(debugStr, p.RobotId, "PathGenerator", "Push PathChan")
+			//log.Printf(debugStr, p.RobotId, "PathGenerator", "Push PathChan")
 			p.PathChan <- p.getPath()
-			log.Printf(debugStr, p.RobotId, "PathGenerator", "Push GridPathChan")
+			//log.Printf(debugStr, p.RobotId, "PathGenerator", "Push GridPathChan")
 			p.GridPathChan <- p.Path
 			log.Printf(debugStr, p.RobotId, "PathGenerator", "Finished processing goal update")
 			//go p.FollowPath()
@@ -67,9 +67,9 @@ func (p *BasicPlanner) PathPublisher(n ros.Node, pathChan chan *nav_msgs.Path) {
 	pub := n.NewPublisher(pathTopic, nav_msgs.MsgPath)
 
 	for path := range pathChan {
-		log.Printf("ROBOT %d ::: PathPublisher(): Publishing path with length %d", p.RobotId, len(path.Poses))
+		//log.Printf("ROBOT %d ::: PathPublisher(): Publishing path with length %d", p.RobotId, len(path.Poses))
 		pub.Publish(path)
-		log.Printf("ROBOT %d ::: PathPublisher(): Finished publishing path", p.RobotId)
+		//log.Printf("ROBOT %d ::: PathPublisher(): Finished publishing path", p.RobotId)
 
 	}
 }
@@ -106,35 +106,20 @@ const debugStr = "ROBOT %d ::: %s(): %s"
 
 func (p *BasicPlanner) rePlan() {
 	log.Printf(debugStr, p.RobotId, "rePlan", "Start")
-	p.Path = p.Grid.Plan()
-	if p.Path == nil {
-		log.Printf(debugStr, p.RobotId, "rePlan", "Path not found")
-	} else {
+	plan, _, found := p.Grid.Plan(p.Start, p.Goal)
+	p.Path = plan
+	if found {
 		log.Printf(debugStr, p.RobotId, "rePlan", "Finish")
+	} else {
+		log.Printf(debugStr, p.RobotId, "rePlan", "Path not found")
 	}
-}
-
-func (p *BasicPlanner) updateGoal() {
-	log.Printf(debugStr, p.RobotId, "updateGoal", "Start")
-	p.Grid = grid.NewGrid([]int{int(p.lastMap.Info.Width), int(p.lastMap.Info.Height)}, p.Start, p.Goal, true)
-	for row := 0; row < int(p.lastMap.Info.Height); row++ {
-		for col := 0; col < int(p.lastMap.Info.Width); col++ {
-			value := p.lastMap.Data[row*int(p.lastMap.Info.Width)+col]
-			if int(value) > Costmap2dInscribedInflatedObstacle {
-				p.Grid.Set(grid.Coord{col, row}, -1)
-			}
-		}
-	}
-	log.Printf(debugStr, p.RobotId, "updateGoal", "Finish")
 }
 
 func (p *BasicPlanner) newMap(m *nav_msgs.OccupancyGrid) {
-	//p.Start = grid.Coord{1, 1} // FIXME: Actually use start and end
-	//p.Goal = grid.Coord{100, 100}
 	p.MapResolution = float64(m.Info.Resolution)
 	p.MapOrigin = []float64{m.Info.Origin.Position.X, m.Info.Origin.Position.Y}
 	p.lastMap = m
-	p.updateGoal()
+	p.Grid = astar_planner.NewOccupancyTileGrid(m)
 }
 
 func (p *BasicPlanner) getPath() *nav_msgs.Path {
@@ -160,8 +145,8 @@ func (p *BasicPlanner) getPath() *nav_msgs.Path {
 			},
 			Pose: geometry_msgs.Pose{
 				Position: geometry_msgs.Point{
-					X: float64(point[0])*p.MapResolution + p.MapOrigin[0],
-					Y: float64(point[1])*p.MapResolution + p.MapOrigin[1],
+					X: float64(point.Coord[0])*p.MapResolution + p.MapOrigin[0],
+					Y: float64(point.Coord[1])*p.MapResolution + p.MapOrigin[1],
 					Z: 0,
 				},
 				Orientation: geometry_msgs.Quaternion{},

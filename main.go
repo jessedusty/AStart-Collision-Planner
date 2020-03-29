@@ -2,47 +2,22 @@ package main
 
 //go:generate gengo msg std_msgs/String
 import (
-	"ee631_midterm/dstarlite/grid"
+	"ee631_midterm/astar_planner"
 	"ee631_midterm/grid_planner"
 	"ee631_midterm/msgs/geometry_msgs"
 	"ee631_midterm/msgs/map_msgs"
 	"ee631_midterm/msgs/nav_msgs"
 	"fmt"
 	"github.com/fetchrobotics/rosgo/ros"
-	"github.com/pkg/profile"
 	"os"
 )
 
 const (
-	NUM_ROBOTS = 2
+	NUM_ROBOTS = 4
 )
 
-func mapChannelSplitter(input chan *nav_msgs.OccupancyGrid, outputs []chan *nav_msgs.OccupancyGrid) {
-	for in := range input {
-		for i, _ := range outputs {
-			outputs[i] <- in
-		}
-	}
-}
-
-func goalChannelSplitter(input chan *geometry_msgs.PoseStamped, outputs []chan *geometry_msgs.PoseStamped) {
-	for in := range input {
-		for i, _ := range outputs {
-			outputs[i] <- in
-		}
-	}
-}
-
-func pathChannelSplitter(input chan *nav_msgs.Path, outputs []chan *nav_msgs.Path) {
-	for in := range input {
-		for i, _ := range outputs {
-			outputs[i] <- in
-		}
-	}
-}
-
 func main() {
-	defer profile.Start(profile.ProfilePath(".")).Stop()
+	//defer profile.Start(profile.MemProfile, profile.ProfilePath(".")).Stop()
 
 	node, err := ros.NewNode("/gridmapper", os.Args)
 	if err != nil {
@@ -60,23 +35,28 @@ func main() {
 	plannerMapInputs := make([]chan *nav_msgs.OccupancyGrid, NUM_ROBOTS)
 	goalChanInputs := make([]chan *geometry_msgs.PoseStamped, NUM_ROBOTS)
 	level1Planners := make([]grid_planner.BasicPlanner, NUM_ROBOTS)
-	gridPathChanOutputs := make([]chan []grid.Coord, NUM_ROBOTS)
+	gridPathChanOutputs := make([]chan []*astar_planner.Tile, NUM_ROBOTS)
 
-	startPositions := []grid.Coord{
-		grid.Coord{21, 177},
-		grid.Coord{21, 177 - 25},
-		grid.Coord{21, 177 - 50},
+	startPositions := [][]int{
+		{21, 177},
+		{21, 177 - 25},
+		{21, 177 - 50},
+		{88, 178},
+		{88 + 25, 178},
+		{88 + 50, 178},
+		{88 + 75, 178},
 	}
 
 	for robotID := 0; robotID < NUM_ROBOTS; robotID++ {
 		level1Planners[robotID] = grid_planner.BasicPlanner{
+			Grid:              &astar_planner.TileGrid{},
 			Start:             startPositions[robotID],
-			Goal:              grid.Coord{82, 121},
+			Goal:              []int{82, 121},
 			GoalChan:          make(chan *geometry_msgs.PoseStamped),
 			MapChan:           make(chan *nav_msgs.OccupancyGrid),
 			MapUpdateChan:     make(chan *map_msgs.OccupancyGridUpdate),
 			PathChan:          make(chan *nav_msgs.Path),
-			GridPathChan:      make(chan []grid.Coord),
+			GridPathChan:      make(chan []*astar_planner.Tile),
 			RobotPositionChan: positionChan,
 			RobotId:           robotID,
 		}
@@ -109,4 +89,28 @@ func main() {
 	})
 
 	node.Spin()
+}
+
+func mapChannelSplitter(input chan *nav_msgs.OccupancyGrid, outputs []chan *nav_msgs.OccupancyGrid) {
+	for in := range input {
+		for i, _ := range outputs {
+			outputs[i] <- in
+		}
+	}
+}
+
+func goalChannelSplitter(input chan *geometry_msgs.PoseStamped, outputs []chan *geometry_msgs.PoseStamped) {
+	for in := range input {
+		for i, _ := range outputs {
+			outputs[i] <- in
+		}
+	}
+}
+
+func pathChannelSplitter(input chan *nav_msgs.Path, outputs []chan *nav_msgs.Path) {
+	for in := range input {
+		for i, _ := range outputs {
+			outputs[i] <- in
+		}
+	}
 }

@@ -1,5 +1,10 @@
 package astar_planner
 
+import (
+	"fmt"
+	"strings"
+)
+
 func CoordTo1D(extents []int, coord []int) int {
 	if len(extents) != len(coord) {
 		panic("Coord and extents are not the same length")
@@ -34,4 +39,25 @@ func ConvertTileSliceToIntSlice(tiles []*Tile) [][]int {
 		retVal[i] = v.Coord
 	}
 	return retVal
+}
+
+func TilePathAsString(tiles []*Tile) string {
+	tileStr := make([]string, len(tiles))
+	for i := range tiles {
+		tileStr[i] = tiles[i].String()
+	}
+	return fmt.Sprintf("[%s]", strings.Join(tileStr, ", "))
+}
+
+func intSliceEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
